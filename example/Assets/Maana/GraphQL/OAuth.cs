@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
-using static UnityEngine.Debug;
 
 // ReSharper disable InconsistentNaming
 
@@ -85,11 +84,8 @@ namespace Maana.GraphQL
         private UnityWebRequest TokenRequest()
         {
             if (AUTH_IDENTIFIER == null)
-            {
-                Log(
+                throw new Exception(
                     "OAuth: No auth identifier detected in environment variables: proceeding WITHOUT authentication!");
-                return null;
-            }
 
             try
             {
@@ -125,13 +121,9 @@ namespace Maana.GraphQL
                 yield return www.SendWebRequest();
 
                 if (www.result != UnityWebRequest.Result.Success)
-                {
                     throw new Exception("Could not authenticate: " + www.error);
-                }
-                
-                Token = JsonUtility.FromJson<OAuthToken>(www.downloadHandler.text);
 
-                Log("OAuth Token Received");
+                Token = JsonUtility.FromJson<OAuthToken>(www.downloadHandler.text);
 
                 TokenReceivedEvent.Invoke();
             }

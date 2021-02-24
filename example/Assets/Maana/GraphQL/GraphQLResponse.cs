@@ -1,35 +1,35 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace Maana.GraphQL
 {
     public class GraphQLResponse
     {
-        public string Raw { get; private set; }
-        private readonly JObject _data;
-        public string Exception { get; private set; }
+        public string Raw { get; }
+        public JObject Result { get; }
+        
+        public string Exception { get; }
 
         public GraphQLResponse(string text, string ex = null)
         {
             Exception = ex;
             Raw = text;
-            _data = string.IsNullOrEmpty(text) ? null : JObject.Parse(text);
+            
+            var data = string.IsNullOrEmpty(text) ? null : JObject.Parse(text);
+            if (data == null) return;
+
+            Result = JObject.Parse(data["data"].ToString());
         }
 
-        public T Get<T>(string key)
+        public T GetValue<T>(string key)
         {
-            return GetData()[key].ToObject<T>();
+            return Result[key].ToObject<T>();
         }
 
         public List<T> GetList<T>(string key)
         {
-            return Get<JArray>(key).ToObject<List<T>>();
-        }
-
-        private JObject GetData()
-        {
-            return _data == null ? null : JObject.Parse(_data["data"].ToString());
+            return GetValue<JArray>(key).ToObject<List<T>>();
         }
     }
-
 }

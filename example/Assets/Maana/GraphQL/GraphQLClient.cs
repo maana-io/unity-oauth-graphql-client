@@ -3,7 +3,6 @@ using System.Collections;
 using System.Text;
 using JetBrains.Annotations;
 using Newtonsoft.Json;
-using UnityEngine;
 using UnityEngine.Networking;
 
 namespace Maana.GraphQL
@@ -15,25 +14,26 @@ namespace Maana.GraphQL
         public GraphQLClient(string url)
         {
             this._url = url;
-            Debug.Log("GraphQL endpoint: " + url);
         }
 
         private class GraphQLQuery
         {
-            [UsedImplicitly] public string Query;
-            [UsedImplicitly] public object Variables;
+            // ReSharper disable once InconsistentNaming
+            [UsedImplicitly] public string query;
+            // ReSharper disable once InconsistentNaming
+            [UsedImplicitly] public object variables;
         }
 
         private UnityWebRequest QueryRequest(string query, object variables, string token = null)
         {
             var fullQuery = new GraphQLQuery()
             {
-                Query = query,
-                Variables = variables,
+                query = query,
+                variables = variables,
             };
 
             var json = JsonConvert.SerializeObject(fullQuery);
-
+            
             var request = UnityWebRequest.Post(_url, UnityWebRequest.kHttpVerbPOST);
 
             var payload = Encoding.UTF8.GetBytes(json);
@@ -61,7 +61,7 @@ namespace Maana.GraphQL
                     yield break;
                 }
 
-                string responseString = www.downloadHandler.text;
+                var responseString = www.downloadHandler.text;
 
                 var result = new GraphQLResponse(responseString);
 
