@@ -1,30 +1,35 @@
-﻿using System.Collections;
+﻿using Maana.GraphQL;
 using UnityEngine;
-using GraphQL;
 
-public class ExampleQuery : MonoBehaviour
+namespace Maana
 {
-    void Start()
+    public class ExampleQuery : MonoBehaviour
     {
-        //Sends a query using credientials and will queue the query until the token is gained
-        GraphQLManager.instance.Query(@"query { test }", callback: QueryCallback);
+        private void Start()
+        {
+            //Sends a query using credentials and will queue the query until the token is gained
+            GraphQLManager.Instance.Query(@"query { test }", callback: QueryCallback);
 
-        //Returns true or false depending on whether the manager has an access token
-        Debug.Log(GraphQLManager.instance.hasToken);
-    }
+            //Returns true or false depending on whether the manager has an access token
+            print(GraphQLManager.Instance.HasToken);
+        }
 
-    void QueryCallback(GraphQLResponse response)
-    {
-        //Raw data from response
-        Debug.Log(response.raw);
+        private static void QueryCallback(GraphQLResponse response)
+        {
+            //Raw data from response
+            print(response.Raw);
 
-        //Any exceptions possibly thrown by response
-        Debug.Log(response.exception);
+            //Any exceptions possibly thrown by response
+            print(response.Exception);
 
-        /* Other Functions from GraphQLResponse -
+            var s = response.Get<string>("Info");
+            print(s);
+            
+            /* Other Functions from GraphQLResponse -
             public T Get<T>(string key)
             public List<T> GetList<T>(string key)
             public JObject GetData()
         */
+        }
     }
 }

@@ -1,42 +1,42 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Text;
+using JetBrains.Annotations;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace GraphQL
+namespace Maana.GraphQL
 {
     public class GraphQLClient
     {
-        private string url;
+        private readonly string _url;
 
         public GraphQLClient(string url)
         {
-            this.url = url;
+            this._url = url;
             Debug.Log("GraphQL endpoint: " + url);
         }
 
         private class GraphQLQuery
         {
-            public string query;
-            public object variables;
+            [UsedImplicitly] public string Query;
+            [UsedImplicitly] public object Variables;
         }
 
         private UnityWebRequest QueryRequest(string query, object variables, string token = null)
         {
             var fullQuery = new GraphQLQuery()
             {
-                query = query,
-                variables = variables,
+                Query = query,
+                Variables = variables,
             };
 
-            string json = JsonConvert.SerializeObject(fullQuery);
+            var json = JsonConvert.SerializeObject(fullQuery);
 
-            UnityWebRequest request = UnityWebRequest.Post(url, UnityWebRequest.kHttpVerbPOST);
+            var request = UnityWebRequest.Post(_url, UnityWebRequest.kHttpVerbPOST);
 
-            byte[] payload = Encoding.UTF8.GetBytes(json);
+            var payload = Encoding.UTF8.GetBytes(json);
 
             request.uploadHandler = new UploadHandlerRaw(payload);
             request.SetRequestHeader("Content-Type", "application/json");
@@ -51,13 +51,13 @@ namespace GraphQL
         {
             var request = QueryRequest(query, variables, token);
 
-            using (UnityWebRequest www = request)
+            using (var www = request)
             {
                 yield return www.SendWebRequest();
 
-                if (www.isNetworkError)
+                if (www.result == UnityWebRequest.Result.ConnectionError)
                 {
-                    if (callback != null) callback(new GraphQLResponse("", www.error));
+                    callback?.Invoke(new GraphQLResponse("", www.error));
                     yield break;
                 }
 
@@ -65,7 +65,7 @@ namespace GraphQL
 
                 var result = new GraphQLResponse(responseString);
 
-                if (callback != null) callback(result);
+                callback?.Invoke(result);
             }
 
             request.Dispose();

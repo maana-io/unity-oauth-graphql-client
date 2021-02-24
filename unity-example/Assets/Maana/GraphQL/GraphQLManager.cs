@@ -1,80 +1,94 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
-using GraphQL;
-using OAuth;
 
-public class GraphQLManager : MonoBehaviour
+namespace Maana.GraphQL
 {
-    private static GraphQLManager _instance = null;
-    public static GraphQLManager instance => _instance;
-
-    [SerializeField] private string url = null;
-    [SerializeField] private TextAsset credentials = null;
-
-    private OAuthFetcher fetcher = null;
-    private GraphQLClient client = null;
-
-    private List<QueuedQuery> queuedQueries = new List<QueuedQuery>();
-
-    public bool hasToken => fetcher.token != null;
-
-    protected virtual void Awake()
+    public sealed class GraphQLManager : MonoBehaviour
     {
-        if(_instance == null)
-            _instance = this;
-        else if(_instance != this)
-            Destroy(gameObject);
-        DontDestroyOnLoad(gameObject);
+        public static GraphQLManager Instance { get; private set; }
 
-        if(_instance == this)
+        [SerializeField] private string url;
+        [SerializeField] private TextAsset credentials;
+
+        private OAuthFetcher _fetcher;
+        private GraphQLClient _client;
+
+        private List<QueuedQuery> _queuedQueries = new List<QueuedQuery>();
+
+        public bool HasToken => _fetcher.Token != null;
+
+        private void Awake()
         {
-            if(url != "" && url != null)
-                client = new GraphQLClient(url);
-            else
-                Debug.LogError("No URL specified for GraphQL Manager!");
-
-            if(credentials != null)
+            if(Instance == null)
             {
-                fetcher = new OAuthFetcher(credentials.text);
-                fetcher.tokenReceivedEvent.AddListener(TokenReceived);
+                Instance = this;
+            }
+            else if(Instance != this)
+            {
+                Destroy(gameObject);
+            }
+
+            DontDestroyOnLoad(gameObject);
+
+            if (Instance != this) return;
+            if(!string.IsNullOrEmpty(url))
+            {
+                _client = new GraphQLClient(url);
+            }
+            else
+            {
+                Debug.LogError("No URL specified for GraphQL Manager!");
+            }
+
+            if (credentials == null) return;
+            _fetcher = new OAuthFetcher(credentials.text);
+            _fetcher.TokenReceivedEvent.AddListener(TokenReceived);
+        }
+
+        private void TokenReceived()
+        {
+            foreach(var queuedQuery in _queuedQueries)
+            {
+                Query(queuedQuery.Query, queuedQuery.Variables, callback: queuedQuery.Callback);
+            }
+
+            _queuedQueries = new List<QueuedQuery>();
+        }
+
+        public void Query(string query, object variables = null, Action<GraphQLResponse> callback = null)
+        {
+            if (_client == null)
+            {
+                throw new Exception("GraphQL Client is null, couldn't send query.");
+            }
+
+            if (HasToken)
+            {
+                _client.Query(query, variables, _fetcher.Token.access_token, callback: callback);
+            }
+            else if (_fetcher == null)
+            {
+                _client.Query(query, variables, callback: callback);
+            }
+            else
+            {
+                _queuedQueries.Add(new QueuedQuery(query, variables, callback));
             }
         }
-    }
 
-    private void TokenReceived()
-    {
-        foreach(QueuedQuery queuedQuery in queuedQueries)
-            Query(queuedQuery.query, queuedQuery.variables, callback: queuedQuery.callback);
-        
-        queuedQueries = new List<QueuedQuery>();
-    }
-
-    public void Query(string query, object variables = null, Action<GraphQLResponse> callback = null)
-    {
-        if(client == null)
-            if(hasToken)
-                client.Query(query, variables, fetcher.token.access_token, callback: callback);
-            else if(fetcher == null)
-                client.Query(query, variables, callback: callback);
-            else
-                queuedQueries.Add(new QueuedQuery(query, variables, callback));
-        else
-            Debug.LogError("GraphQL Client is null, couldn't send query.");
-    }
-
-    private class QueuedQuery
-    {
-        public string query;
-        public object variables;
-        public Action<GraphQLResponse> callback;
-
-        public QueuedQuery(string query, object variables = null, Action<GraphQLResponse> callback = null)
+        private class QueuedQuery
         {
-            this.query = query;
-            this.variables = variables;
-            this.callback = callback;
+            public readonly string Query;
+            public readonly object Variables;
+            public readonly Action<GraphQLResponse> Callback;
+
+            public QueuedQuery(string query, object variables = null, Action<GraphQLResponse> callback = null)
+            {
+                Query = query;
+                Variables = variables;
+                Callback = callback;
+            }
         }
     }
 }

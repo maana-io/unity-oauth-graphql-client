@@ -1,23 +1,25 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Text;
+using JetBrains.Annotations;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
+using static UnityEngine.Debug;
 
-namespace OAuth
+// ReSharper disable InconsistentNaming
+
+namespace Maana.GraphQL
 {
-    [System.Serializable]
+    [Serializable]
     public class OAuthToken
     {
-        public string access_token;
-        public string token_type;
-        public string session_state;
-        public string scope;
+        [UsedImplicitly] public string access_token;
+        [UsedImplicitly] public string token_type;
+        [UsedImplicitly] public string session_state;
+        [UsedImplicitly] public string scope;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class OAuthCredentials
     {
         public string AUTH_DOMAIN;
@@ -29,17 +31,15 @@ namespace OAuth
 
     public class OAuthFetcher
     {
-        public OAuthToken token { get; private set; }
+        private readonly string AUTH_CLIENT_ID;
+        private readonly string AUTH_CLIENT_SECRET;
 
-        public UnityEvent tokenReceivedEvent { get; private set; } = new UnityEvent();
+        private readonly string AUTH_DOMAIN;
+        private readonly string AUTH_IDENTIFIER;
+        private readonly float REFRESH_MINUTES;
 
-        private string AUTH_DOMAIN;
-        private string AUTH_CLIENT_ID;
-        private string AUTH_CLIENT_SECRET;
-        private string AUTH_IDENTIFIER;
-        private float REFRESH_MINUTES;
-
-        public OAuthFetcher(string authDomain, string authClientId, string authClientSecret, string authIdentifier, float refreshMinutes = 5f)
+        public OAuthFetcher(string authDomain, string authClientId, string authClientSecret, string authIdentifier,
+            float refreshMinutes = 5f)
         {
             AUTH_DOMAIN = authDomain;
             AUTH_CLIENT_ID = authClientId;
@@ -49,9 +49,9 @@ namespace OAuth
             GetOAuthToken();
         }
 
-        public OAuthFetcher(string authCredentials)
+        public OAuthFetcher(string authCredentialsJson)
         {
-            OAuthCredentials credentials = JsonUtility.FromJson<OAuthCredentials>(authCredentials);
+            var credentials = JsonUtility.FromJson<OAuthCredentials>(authCredentialsJson);
             AUTH_DOMAIN = credentials.AUTH_DOMAIN;
             AUTH_CLIENT_ID = credentials.AUTH_CLIENT_ID;
             AUTH_CLIENT_SECRET = credentials.AUTH_CLIENT_SECRET;
@@ -60,7 +60,12 @@ namespace OAuth
             GetOAuthToken();
         }
 
-        public string StripCredentials(string str){
+        public OAuthToken Token { get; private set; }
+
+        public UnityEvent TokenReceivedEvent { get; } = new UnityEvent();
+
+        private string StripCredentials(string str)
+        {
             return str
                 .Replace(AUTH_IDENTIFIER, "<chunk redacted>")
                 .Replace(AUTH_CLIENT_SECRET, "<chunk redacted>");
@@ -79,34 +84,35 @@ namespace OAuth
 
         private UnityWebRequest TokenRequest()
         {
-            if(AUTH_IDENTIFIER != null)
+            if (AUTH_IDENTIFIER == null)
             {
-                try
-                {
-                    string URL = $"https://{AUTH_DOMAIN}/auth/realms/{AUTH_IDENTIFIER}/protocol/openid-connect/token";
+                Log(
+                    "OAuth: No auth identifier detected in environment variables: proceeding WITHOUT authentication!");
+                return null;
+            }
 
-                    WWWForm formData = new WWWForm();
-
-                    formData.AddField("client_id", AUTH_CLIENT_ID);
-                    formData.AddField("client_secret", AUTH_CLIENT_SECRET);
-
-                    formData.AddField("grant_type", "client_credentials");
-                    formData.AddField("audience", AUTH_IDENTIFIER);
-
-                    UnityWebRequest request = UnityWebRequest.Post(URL, formData);
-
-                    request.SetRequestHeader("Accept", "application/json");
-                    request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-
-                    return request;
-                } catch(Exception ex)
-                {
-                    throw new Exception($"OAuth: Error obtaining OAuth token: {StripCredentials(ex.Message)}");
-                }
-            } else
+            try
             {
-                Debug.Log("OAuth: No auth identifier detected in environment variables: proceeding WITHOUT authentication!");
-                return null; 
+                var url = $"https://{AUTH_DOMAIN}/auth/realms/{AUTH_IDENTIFIER}/protocol/openid-connect/token";
+
+                var formData = new WWWForm();
+
+                formData.AddField("client_id", AUTH_CLIENT_ID);
+                formData.AddField("client_secret", AUTH_CLIENT_SECRET);
+
+                formData.AddField("grant_type", "client_credentials");
+                formData.AddField("audience", AUTH_IDENTIFIER);
+
+                var request = UnityWebRequest.Post(url, formData);
+
+                request.SetRequestHeader("Accept", "application/json");
+                request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+                return request;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"OAuth: Error obtaining OAuth token: {StripCredentials(ex.Message)}");
             }
         }
 
@@ -114,21 +120,21 @@ namespace OAuth
         {
             var request = TokenRequest();
 
-            using(UnityWebRequest www = request)
+            using (var www = request)
             {
                 yield return www.SendWebRequest();
 
-                if(www.isNetworkError)
+                if (www.result == UnityWebRequest.Result.ConnectionError)
                 {
-                    Debug.Log(www.error);
+                    Log(www.error);
                     yield break;
                 }
 
-                token = JsonUtility.FromJson<OAuthToken>(www.downloadHandler.text);
+                Token = JsonUtility.FromJson<OAuthToken>(www.downloadHandler.text);
 
-                Debug.Log("OAuth Token Received");
+                Log("OAuth Token Received");
 
-                tokenReceivedEvent.Invoke();
+                TokenReceivedEvent.Invoke();
             }
 
             request.Dispose();
