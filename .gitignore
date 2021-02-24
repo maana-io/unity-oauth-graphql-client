@@ -1,5 +1,6 @@
 # example/Assets/credentials.json
 example/Assets/credentials.*
+MaanaGraphQL.unitypackage
 
 # This .gitignore file should be placed at the root of your Unity project directory
 #
