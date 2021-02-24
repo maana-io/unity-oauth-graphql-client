@@ -124,12 +124,11 @@ namespace Maana.GraphQL
             {
                 yield return www.SendWebRequest();
 
-                if (www.result == UnityWebRequest.Result.ConnectionError)
+                if (www.result != UnityWebRequest.Result.Success)
                 {
-                    Log(www.error);
-                    yield break;
+                    throw new Exception("Could not authenticate: " + www.error);
                 }
-
+                
                 Token = JsonUtility.FromJson<OAuthToken>(www.downloadHandler.text);
 
                 Log("OAuth Token Received");
