@@ -8,7 +8,7 @@ namespace Maana.GraphQL
     {
         public string Raw { get; }
         public JObject Result { get; }
-        
+        public JToken Errors { get; }
         public string Exception { get; }
 
         public GraphQLResponse(string text, string ex = null)
@@ -18,7 +18,14 @@ namespace Maana.GraphQL
             
             var data = string.IsNullOrEmpty(text) ? null : JObject.Parse(text);
             if (data == null) return;
-
+            
+            Errors = data["errors"];
+            if (Errors != null)
+            {
+                Debug.Log("GraphQL errors: " + Errors);
+                return;
+            }
+            
             Result = JObject.Parse(data["data"].ToString());
         }
 

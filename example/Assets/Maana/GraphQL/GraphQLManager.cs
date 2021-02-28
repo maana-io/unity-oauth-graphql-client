@@ -6,10 +6,9 @@ namespace Maana.GraphQL
 {
     public sealed class GraphQLManager : MonoBehaviour
     {
-        public static GraphQLManager Instance { get; private set; }
-
         [SerializeField] private string url;
         [SerializeField] private TextAsset credentials;
+        [SerializeField] private bool persistAcrossScenes;
 
         private OAuthFetcher _fetcher;
         private GraphQLClient _client;
@@ -20,28 +19,25 @@ namespace Maana.GraphQL
 
         private void Awake()
         {
-            if(Instance == null)
+            if (persistAcrossScenes)
             {
-                Instance = this;
-            }
-            else if(Instance != this)
-            {
-                Destroy(gameObject);
+                DontDestroyOnLoad(gameObject);
             }
 
-            DontDestroyOnLoad(gameObject);
-
-            if (Instance != this) return;
             if(!string.IsNullOrEmpty(url))
             {
                 _client = new GraphQLClient(url);
             }
             else
             {
-                Debug.LogError("No URL specified for GraphQL Manager!");
+                throw new Exception(("No URL specified for GraphQL Manager"));
             }
 
-            if (credentials == null) return;
+            if (credentials == null)
+            {
+                throw new Exception("No credentials");
+            }
+            
             _fetcher = new OAuthFetcher(credentials.text);
             _fetcher.TokenReceivedEvent.AddListener(TokenReceived);
         }

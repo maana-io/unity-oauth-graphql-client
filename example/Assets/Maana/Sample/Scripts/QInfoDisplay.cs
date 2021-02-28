@@ -9,6 +9,7 @@ using UnityEngine;
 
 public class QInfoDisplay : MonoBehaviour
 {
+    [SerializeField] private GraphQLManager ckg;
     [SerializeField] private TMP_Text text;
     [SerializeField] private float rotateAmount = .005f;
     
@@ -22,7 +23,7 @@ public class QInfoDisplay : MonoBehaviour
     
     private void Start()
     {
-        GraphQLManager.Instance.Query(@"query { info { id name description } }", callback: QueryCallback);
+        ckg.Query(@"query { info { id name description } }", callback: QueryCallback);
     }
 
     private void Update()
